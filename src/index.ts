@@ -35,7 +35,7 @@ io.on('connection', (socket) => {
   console.log(socket.id, 'connected');
 
   socket.on('user', (user) => {
-    // console.log('user:', user);
+    console.log('user:', user);
     socket.data.user = user;
   });
   socket.on(
@@ -98,6 +98,7 @@ io.on('connection', (socket) => {
       socketId: socket.id,
       username: socket.data?.user.name,
       rating: socket.data?.user.rating,
+      imageUrl: socket.data?.user.image,
     }; // create a player object with the socket id and username
 
     const roomData = {

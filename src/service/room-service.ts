@@ -70,6 +70,7 @@ export class RoomService {
           socketId: socket.id,
           username: socket.data?.user.name,
           rating: socket.data?.user.rating,
+          imageUrl: socket.data?.user.image,
         },
       ],
     } as Room;
