@@ -3,6 +3,7 @@ export interface Player {
   socketId: string;
   username: string;
   rating: number;
+  imageUrl: string;
 }
 export interface Room {
   roomId: string;
