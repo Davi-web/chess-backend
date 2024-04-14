@@ -6,6 +6,7 @@ import http from 'http';
 import { v4 as uuidV4 } from 'uuid';
 import { Move, Player, Room } from './interfaces';
 import { RoomService, TimerService } from './service';
+import { RoomTimers } from './service';
 
 const app = express(); // initialize express
 app.get('/', (req: Request, res: Response) => {
@@ -45,9 +46,15 @@ io.on('connection', (socket) => {
       p1ID: string,
       p2ID: string,
       turn: 'w' | 'b',
-      callback: (p1TimeRemaining: number, p2TimeRemaining: number) => void
+      callback: (
+        p1TimeRemaining: number,
+        p2TimeRemaining: number,
+        duration: number
+      ) => void
     ) => {
       // console.log('connected to getTimeRemaining event!'); // <- 1
+      const timer = timerService.getTimersByRoomId(roomId);
+      if (!timer) return;
       // Call the getTimeRemaining method of the TimerService
       const { p1TimeRemaing, p2TimeRemaining } = timerService.getTimeRemaining(
         roomId,
@@ -58,7 +65,7 @@ io.on('connection', (socket) => {
       // console.log('timeRemaining:', timeRemaining);
 
       // Emit the timeRemaining value to the client using the provided callback function
-      callback(p1TimeRemaing, p2TimeRemaining);
+      callback(p1TimeRemaing, p2TimeRemaining, timer.duration);
     }
   );
   socket.on(
@@ -75,10 +82,10 @@ io.on('connection', (socket) => {
         roomId,
         p1ID,
         p2ID,
-        30000,
         p1Orientation,
         p2Orientation
-      ); // 30 seconds
+      );
+
       cb();
     }
   );
@@ -88,29 +95,35 @@ io.on('connection', (socket) => {
     timerService.switchTurn(roomId, playerId);
   });
 
-  socket.on('createRoom', async (callback: (roomId: string) => void) => {
-    // callback here refers to the callback function from the client passed as data
-    const roomId = uuidV4(); // <- 1 create a new uuid
-    await socket.join(roomId); // <- 2 make creating user join the room
+  socket.on(
+    'createRoom',
+    async (duration: number, callback: (roomId: string) => void) => {
+      // callback here refers to the callback function from the client passed as data
+      const roomId = uuidV4(); // <- 1 create a new uuid
+      await socket.join(roomId); // <- 2 make creating user join the room
 
-    const firstPlayer = {
-      id: socket.data?.user.id,
-      socketId: socket.id,
-      username: socket.data?.user.name,
-      rating: socket.data?.user.rating,
-      imageUrl: socket.data?.user.image,
-    }; // create a player object with the socket id and username
+      const firstPlayer = {
+        id: socket.data?.user.id,
+        socketId: socket.id,
+        username: socket.data?.user.name,
+        rating: socket.data?.user.rating,
+        imageUrl: socket.data?.user.image,
+      }; // create a player object with the socket id and username
 
-    const roomData = {
-      roomId,
-      players: [firstPlayer],
-    };
-    // set roomId as a key and roomData including players as value in the map
-    roomService.setRoom(roomId, roomData);
-    // returns Map(1){'2b5b51a9-707b-42d6-9da8-dc19f863c0d0' => [{id: 'socketid', username: 'username1'}]}
+      const roomData = {
+        roomId,
+        players: [firstPlayer],
+      };
+      // set timser for the room
+      timerService.setRoomDuration(roomId, duration);
+      console.log('timer', roomId, duration, timerService.getAllTimers());
+      // set roomId as a key and roomData including players as value in the map
+      roomService.setRoom(roomId, roomData);
+      // returns Map(1){'2b5b51a9-707b-42d6-9da8-dc19f863c0d0' => [{id: 'socketid', username: 'username1'}]}
 
-    callback(roomId); // <- 4 respond with roomId to client by calling the callback function from the client
-  });
+      callback(roomId); // <- 4 respond with roomId to client by calling the callback function from the client
+    }
+  );
 
   socket.on(
     'joinRandomRoom',
